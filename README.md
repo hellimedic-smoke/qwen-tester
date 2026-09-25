@@ -204,10 +204,12 @@ Three are worth calling out:
   trivial request with the shipped config. Run
   `OPENCODE_CONFIG=$PWD/opencode.json OPENCODE_CONFIG_DIR=$PWD/.opencode opencode run -m omlx/<model-id> "say hi"`
   by hand to see the error.
-- `opencode produced no output in ...s, retrying once`: opencode 1.17
-  occasionally hangs at startup before it creates a session, with an empty
-  transcript. The runner retries that task once from a clean workspace and
-  restarts its clock. A task that hangs twice is recorded as `T`.
+- `opencode produced no output in ...s, retrying once`: opencode never
+  started the session. The runner feeds opencode `/dev/null` as stdin
+  because `opencode run` reads a non-terminal stdin to the end and hangs
+  on an open pipe (cron, nohup, CI); if it still hangs, the task is retried
+  once from a clean workspace with the clock restarted, and a second hang
+  is recorded as `T`.
 
 ## Validating the suite
 

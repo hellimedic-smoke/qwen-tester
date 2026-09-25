@@ -65,7 +65,7 @@ else echo "warm-up request failed, continuing"; fi
 # creates its project snapshot. Also proves the config + provider path works.
 printf '   checking opencode ... '
 W0=$(date +%s)
-smoke() { ( cd "$ROOT" && $TO 60 opencode run --auto --format json -m "omlx/$MODEL" "Reply with the single word: ready" >/dev/null 2>&1 ); }
+smoke() { ( cd "$ROOT" && $TO 60 opencode run --auto --format json -m "omlx/$MODEL" "Reply with the single word: ready" </dev/null >/dev/null 2>&1 ); }
 if smoke; then echo "ok in $(( $(date +%s) - W0 ))s"
 elif { printf 'no reply, retrying ... '; smoke; }; then echo "ok in $(( $(date +%s) - W0 ))s"
 else echo "opencode smoke call failed or timed out (see README: troubleshooting), continuing"; fi
@@ -87,17 +87,19 @@ for t in "${TASKS[@]}"; do
   IDX=$((IDX + 1))
   START=$(date +%s)
   $TO "$TIMEOUT" opencode run --auto --dir "$WS" --format json -m "omlx/$MODEL" "$PROMPT" \
-    >"$RUN/$t.agent.log" 2>&1
+    <"/dev/null" >"$RUN/$t.agent.log" 2>&1
   RC=$?
   # A timeout with an empty transcript means opencode never started the
-  # session (an intermittent opencode startup hang, not a slow model).
-  # Retry once from a clean workspace; the clock restarts with the retry.
+  # session (a startup hang, not a slow model). stdin is /dev/null above
+  # because `opencode run` reads a non-TTY stdin to the end and waits
+  # forever on an open pipe. Retry once from a clean workspace anyway;
+  # the clock restarts with the retry.
   if [ "$RC" -eq 124 ] && [ ! -s "$RUN/$t.agent.log" ]; then
     echo "   !!   $t: opencode produced no output in ${TIMEOUT}s, retrying once"
     rm -rf "$WS"; mkdir -p "$WS"; cp -R "$TD/workspace/." "$WS/"
     START=$(date +%s)
     $TO "$TIMEOUT" opencode run --auto --dir "$WS" --format json -m "omlx/$MODEL" "$PROMPT" \
-      >"$RUN/$t.agent.log" 2>&1
+      <"/dev/null" >"$RUN/$t.agent.log" 2>&1
     RC=$?
   fi
   AGENT_SECS=$(( $(date +%s) - START ))
