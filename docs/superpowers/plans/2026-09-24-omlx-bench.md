@@ -18,7 +18,7 @@
 - Result path: `results/<machine-slug>-<YYYYMMDD-HHMMSS>/<model-id>/`.
 - Knobs: `BENCH_TIMEOUT` (900), `BENCH_TEST_TIMEOUT` (120), `BENCH_RUN_DIR`, `BENCH_NOTE`.
 - No secrets, no `/Users/` or `/home/` paths anywhere in the tree.
-- Source harness: `/Users/matthewhelling/omarchy/agent-bench` (referred to below as `$SRC`). Never copy its `results/` transcripts.
+- Source harness: `~/omarchy/agent-bench` (referred to below as `$SRC`). Never copy its `results/` transcripts.
 
 ## Review Focus
 
@@ -42,7 +42,7 @@
 
 ```bash
 cd ~/omarchy/omlx-bench
-SRC=/Users/matthewhelling/omarchy/agent-bench
+SRC=~/omarchy/agent-bench
 cp -R "$SRC/tasks" "$SRC/solutions" .
 cp "$SRC/selftest.sh" .
 find . -name __pycache__ -type d -exec rm -rf {} +
@@ -592,7 +592,7 @@ git add sweep.sh && git commit -m "Add sweep over pinned models with server disc
 - [ ] **Step 1: Copy and reshape the three source TSVs**
 
 ```bash
-SRC=/Users/matthewhelling/omarchy/agent-bench/results/sweep-20260919-172326
+SRC=~/omarchy/agent-bench/results/sweep-20260919-172326
 D=results/m5-max-128gb-20260919
 for m in Qwen3-Coder-30B-A3B-Instruct-MLX-8bit Qwen3.8-27B-MLX-8bit Qwen3.8-Flash-Next-oQ4e-mtp; do
   mkdir -p "$D/$m"; echo "$m" > "$D/$m/config"
@@ -613,7 +613,7 @@ Expected: header of each results.tsv is exactly `task status passed failed agent
 
 - [ ] **Step 2: Confirm nothing personal came along**
 
-Run: `grep -rn '/home/\|/Users/\|hellimedic' results/`
+Run: `grep -rn '/home/\|/Users/' results/`
 Expected: no output.
 
 - [ ] **Step 3: Commit**
