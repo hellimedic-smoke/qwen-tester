@@ -92,8 +92,8 @@ for t in "${TASKS[@]}"; do
 
   IDX=$((IDX + 1))
   START=$(date +%s)
-  to "$TIMEOUT" opencode run --auto --dir "$WS" --format json -m "omlx/$MODEL" "$PROMPT" \
-    <"/dev/null" >"$RUN/$t.agent.log" 2>&1
+  ( cd "$WS" && to "$TIMEOUT" opencode run --auto --dir "$WS" --format json -m "omlx/$MODEL" "$PROMPT" \
+      <"/dev/null" >"$RUN/$t.agent.log" 2>&1 )
   RC=$?
   # A timeout with an empty transcript means opencode never started the
   # session (a startup hang, not a slow model). stdin is /dev/null above
@@ -104,8 +104,8 @@ for t in "${TASKS[@]}"; do
     echo "   !!   $t: opencode produced no output in ${TIMEOUT}s, retrying once"
     rm -rf "$WS"; mkdir -p "$WS"; cp -R "$TD/workspace/." "$WS/"
     START=$(date +%s)
-    to "$TIMEOUT" opencode run --auto --dir "$WS" --format json -m "omlx/$MODEL" "$PROMPT" \
-      <"/dev/null" >"$RUN/$t.agent.log" 2>&1
+    ( cd "$WS" && to "$TIMEOUT" opencode run --auto --dir "$WS" --format json -m "omlx/$MODEL" "$PROMPT" \
+        <"/dev/null" >"$RUN/$t.agent.log" 2>&1 )
     RC=$?
   fi
   AGENT_SECS=$(( $(date +%s) - START ))
