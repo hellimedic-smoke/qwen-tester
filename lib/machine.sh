@@ -12,7 +12,9 @@ fi
 echo "chip=$CHIP"
 echo "memory_gb=$MEM_GB"
 echo "macos=$(sw_vers -productVersion 2>/dev/null || echo unknown)"
-echo "omlx=$(omlx --version 2>/dev/null | head -1 || echo unknown)"
-echo "opencode=$(opencode --version 2>/dev/null | head -1 || echo unknown)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+probe() { python3 "$HERE/timeout.py" 10 "$@" 2>/dev/null | head -1; }
+echo "omlx=$(probe omlx --version || echo unknown)"
+echo "opencode=$(probe opencode --version || echo unknown)"
 echo "date=$(date +%Y-%m-%d)"
 echo "note=${BENCH_NOTE:-}"

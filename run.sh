@@ -6,11 +6,13 @@
 # Env: OMLX_URL            oMLX server (default: 127.0.0.1:8000, then :8100)
 #      BENCH_TIMEOUT       per-task agent budget in seconds (default 900)
 #      BENCH_TEST_TIMEOUT  grading budget in seconds (default 120)
+#      BENCH_SMOKE_TIMEOUT untimed opencode smoke call budget (default 300)
 #      BENCH_RUN_DIR       write results here instead of a fresh directory
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TIMEOUT="${BENCH_TIMEOUT:-900}"
 TEST_TIMEOUT="${BENCH_TEST_TIMEOUT:-120}"
+SMOKE_TIMEOUT="${BENCH_SMOKE_TIMEOUT:-300}"
 to() { python3 "$ROOT/lib/timeout.py" "$@"; }
 
 MODEL="${1:-}"; shift || true
@@ -59,18 +61,19 @@ printf 'task\tstatus\tpassed\tfailed\tagent_secs\texit\tout_tokens\tturns\n' > "
 printf '   loading %s ... ' "$MODEL"
 W0=$(date +%s)
 if curl -sf --max-time 600 "$OMLX_URL/v1/chat/completions" -H 'content-type: application/json' \
-     -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with the single word: ready\"}],\"max_tokens\":8}" >/dev/null
+     -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with the single word: ready\"}],\"max_tokens\":64}" >/dev/null
 then echo "ready in $(( $(date +%s) - W0 ))s"
 else echo "warm-up request failed, continuing"; fi
 
 # ---- smoke: prove opencode + shipped config + provider work end to end,
 # in a scratch directory outside the checkout so a stray tool call cannot
-# touch tracked files. Two failures in a row is a setup problem, not a
-# benchmark result.
+# touch tracked files. Untimed and generous: a big thinking model's first
+# request has to prefill opencode's ~10k-token system prompt cold. Two
+# failures in a row is a setup problem, not a benchmark result.
 printf '   checking opencode ... '
 W0=$(date +%s)
 mkdir -p "$SCRATCH/smoke"
-smoke() { ( cd "$SCRATCH/smoke" && to 60 opencode run --auto --dir "$SCRATCH/smoke" --format json -m "omlx/$MODEL" \
+smoke() { ( cd "$SCRATCH/smoke" && to "$SMOKE_TIMEOUT" opencode run --auto --dir "$SCRATCH/smoke" --format json -m "omlx/$MODEL" \
             "Reply with the single word: ready" </dev/null >"$SCRATCH/smoke.log" 2>&1 ); }
 if smoke; then echo "ok in $(( $(date +%s) - W0 ))s"
 elif { printf 'no reply, retrying ... '; smoke; }; then echo "ok in $(( $(date +%s) - W0 ))s"
