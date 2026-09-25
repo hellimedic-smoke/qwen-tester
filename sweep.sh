@@ -17,7 +17,7 @@ SWEEP=""
 if [ "${1:-}" = "-o" ]; then SWEEP="$2"; shift 2; fi
 [ -z "$SWEEP" ] && SWEEP="$ROOT/results/$("$ROOT/lib/machine.sh" slug)-$(date +%Y%m%d-%H%M%S)"
 
-OMLX_URL=$("$ROOT/lib/omlx_url.sh") || { echo "!! no oMLX server at ${OMLX_URL:-localhost:8000 or :8100} (is it running? try: omlx start)" >&2; exit 2; }
+OMLX_URL=$("$ROOT/lib/omlx_url.sh") || { echo "!! no oMLX server at ${OMLX_URL:-127.0.0.1:8000 or :8100} (is it running? try: omlx start)" >&2; exit 2; }
 export OMLX_URL
 AVAILABLE=$("$ROOT/lib/models.sh" "$OMLX_URL") || { echo "!! no oMLX server at $OMLX_URL" >&2; exit 2; }
 

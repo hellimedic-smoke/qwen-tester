@@ -3,7 +3,7 @@
 #   ./run.sh Qwen3-Coder-30B-A3B-Instruct-MLX-8bit               all 15 tasks
 #   ./run.sh Qwen3.8-27B-MLX-8bit t02-lru-cache t05-perf-dedup    a subset
 #
-# Env: OMLX_URL            oMLX server (default: localhost:8000, then :8100)
+# Env: OMLX_URL            oMLX server (default: 127.0.0.1:8000, then :8100)
 #      BENCH_TIMEOUT       per-task agent budget in seconds (default 900)
 #      BENCH_TEST_TIMEOUT  grading budget in seconds (default 120)
 #      BENCH_RUN_DIR       write results here instead of a fresh directory
@@ -22,7 +22,7 @@ command -v python3  >/dev/null || die "python3 not found"
 command -v opencode >/dev/null || die "opencode not found (https://opencode.ai)"
 command -v curl     >/dev/null || die "curl not found"
 [ -f "$ROOT/opencode.json" ] || die "missing $ROOT/opencode.json"
-OMLX_URL=$("$ROOT/lib/omlx_url.sh") || die "no oMLX server at ${OMLX_URL:-localhost:8000 or :8100} (is it running? try: omlx start)"
+OMLX_URL=$("$ROOT/lib/omlx_url.sh") || die "no oMLX server at ${OMLX_URL:-127.0.0.1:8000 or :8100} (is it running? try: omlx start)"
 MODELS=$("$ROOT/lib/models.sh" "$OMLX_URL") || die "no oMLX server at $OMLX_URL"
 grep -qxF "$MODEL" <<<"$MODELS" || die "model '$MODEL' is not on $OMLX_URL (server has: $(tr '\n' ' ' <<<"$MODELS"))"
 
@@ -30,9 +30,9 @@ grep -qxF "$MODEL" <<<"$MODELS" || die "model '$MODEL' is not on $OMLX_URL (serv
 CONFIG="$ROOT/opencode.json"
 SCRATCH=$(mktemp -d -t omlx-bench) || die "mktemp failed"
 trap 'rm -rf "$SCRATCH"' EXIT
-if [ "$OMLX_URL" != "http://localhost:8000" ]; then
+if [ "$OMLX_URL" != "http://127.0.0.1:8000" ]; then
   CONFIG="$SCRATCH/opencode.json"
-  python3 -c 'import sys; print(open(sys.argv[1]).read().replace("http://localhost:8000", sys.argv[2]), end="")' \
+  python3 -c 'import sys; print(open(sys.argv[1]).read().replace("http://127.0.0.1:8000", sys.argv[2]), end="")' \
     "$ROOT/opencode.json" "$OMLX_URL" > "$CONFIG"
 fi
 [ -s "$CONFIG" ] || die "could not prepare opencode config"

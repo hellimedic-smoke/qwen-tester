@@ -103,9 +103,11 @@ The benchmark uses its own `opencode.json` and its own config directory
 neither read nor changed. opencode populates that directory on first use,
 which needs the network once and takes a few seconds.
 
-The scripts look for oMLX on `http://localhost:8000` (its default) and then
-`http://localhost:8100`. If you changed the port or run oMLX on another
-machine, set `OMLX_URL=http://host:port`.
+The scripts look for oMLX on `http://127.0.0.1:8000` (its default) and then
+`http://127.0.0.1:8100`. If you changed the port or run oMLX on another
+machine, set `OMLX_URL=http://host:port`. Prefer an IP over `localhost`:
+oMLX listens on IPv4 only, and a client that tries IPv6 first can fail to
+connect intermittently.
 
 ## Run
 
@@ -213,7 +215,7 @@ Three are worth calling out:
 ## Troubleshooting
 
 - `no oMLX server at ...`: run `omlx start`, or set `OMLX_URL` if the server
-  is not on localhost port 8000 or 8100 (check the port in the oMLX app's
+  is not on 127.0.0.1 port 8000 or 8100 (check the port in the oMLX app's
   settings, or `~/.omlx/settings.json`).
 - `model '...' is not on ...`: the directory name under `~/.omlx/models`
   must match the id exactly; `./lib/models.sh` shows what the server sees.
