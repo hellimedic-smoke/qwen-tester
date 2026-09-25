@@ -200,6 +200,10 @@ Three are worth calling out:
   especially a near miss.
 - **Wall clock includes opencode.** Reading files, running the smoke test and
   re-planning all count. That is deliberate: it is the setup that is timed.
+- **Give oMLX the machine.** Anything else hitting the server, or loading
+  another model, can stall requests for minutes while oMLX evicts and
+  reloads; one such stall showed a one-token reply taking 400 s. Run a
+  sweep with nothing else using the server.
 - **`OUT TOK/S` is the cleanest speed comparison** across machines, because
   it divides out how much the model chose to write.
 - **`T`** means the per-task cap was hit; **`B`** means the grading suite did
