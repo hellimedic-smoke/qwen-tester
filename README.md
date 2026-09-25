@@ -90,9 +90,11 @@ Then, from a clone of this repo:
 ./selftest.sh baseline   # optional: proves the task suite is intact
 ```
 
-The benchmark uses its own `opencode.json`, injected through
-`OPENCODE_CONFIG`, so your global opencode settings are neither read nor
-changed. If oMLX runs on another machine, set `OMLX_URL=http://host:8100`.
+The benchmark uses its own `opencode.json` and its own config directory
+(`.opencode/`, git-ignored), so your global opencode settings and plugins are
+neither read nor changed. opencode populates that directory on first use,
+which needs the network once and takes a few seconds. If oMLX runs on
+another machine, set `OMLX_URL=http://host:8100`.
 
 ## Run
 
@@ -200,8 +202,12 @@ Three are worth calling out:
   must match the id exactly; `./lib/models.sh` shows what the server sees.
 - `opencode smoke call failed or timed out`: opencode could not complete a
   trivial request with the shipped config. Run
-  `OPENCODE_CONFIG=$PWD/opencode.json opencode run -m omlx/<model-id> "say hi"`
+  `OPENCODE_CONFIG=$PWD/opencode.json OPENCODE_CONFIG_DIR=$PWD/.opencode opencode run -m omlx/<model-id> "say hi"`
   by hand to see the error.
+- `opencode produced no output in ...s, retrying once`: opencode 1.17
+  occasionally hangs at startup before it creates a session, with an empty
+  transcript. The runner retries that task once from a clean workspace and
+  restarts its clock. A task that hangs twice is recorded as `T`.
 
 ## Validating the suite
 

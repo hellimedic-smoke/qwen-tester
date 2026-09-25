@@ -3,3 +3,4 @@ results/**/*.test.log
 results/**/t[0-9][0-9]-*/
 __pycache__/
 .superpowers/
+.opencode/
