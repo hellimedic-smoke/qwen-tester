@@ -39,6 +39,10 @@ if [ "$OMLX_URL" != "http://127.0.0.1:8000" ]; then
 fi
 [ -s "$CONFIG" ] || die "could not prepare opencode config"
 export OPENCODE_CONFIG="$CONFIG"
+# opencode also reads <git root>/opencode.json as "project config" when run
+# inside this repo, and it wins over OPENCODE_CONFIG. Every task workspace
+# is inside the repo, so turn that off or the port fix above is ignored.
+export OPENCODE_DISABLE_PROJECT_CONFIG=1
 # Isolate from the user's global opencode config (plugins, providers) and pin
 # the version for the duration of the run. The config dir is git-ignored;
 # opencode populates it on first use.
@@ -98,6 +102,10 @@ for t in "${TASKS[@]}"; do
   ( cd "$WS" && to "$TIMEOUT" opencode run --auto --dir "$WS" --format json -m "omlx/$MODEL" "$PROMPT" \
       <"/dev/null" >"$RUN/$t.agent.log" 2>&1 )
   RC=$?
+  # Ctrl-C / SIGTERM reached opencode: stop the run instead of marching on.
+  if [ "$RC" -eq 130 ] || [ "$RC" -eq 143 ]; then
+    echo; echo "!! interrupted during $t; results so far are in ${RUN#"$ROOT/"}" >&2; exit 130
+  fi
   # A timeout with an empty transcript means opencode never started the
   # session (a startup hang, not a slow model). stdin is /dev/null above
   # because `opencode run` reads a non-TTY stdin to the end and waits
@@ -110,6 +118,9 @@ for t in "${TASKS[@]}"; do
     ( cd "$WS" && to "$TIMEOUT" opencode run --auto --dir "$WS" --format json -m "omlx/$MODEL" "$PROMPT" \
         <"/dev/null" >"$RUN/$t.agent.log" 2>&1 )
     RC=$?
+    if [ "$RC" -eq 130 ] || [ "$RC" -eq 143 ]; then
+      echo; echo "!! interrupted during $t; results so far are in ${RUN#"$ROOT/"}" >&2; exit 130
+    fi
   fi
   AGENT_SECS=$(( $(date +%s) - START ))
 

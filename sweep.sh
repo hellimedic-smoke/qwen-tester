@@ -52,6 +52,10 @@ for m in "${MODELS[@]}"; do
   fi
   BENCH_RUN_DIR="$DIR" BENCH_CONFIG_INDEX="$IDX" BENCH_CONFIG_TOTAL="${#MODELS[@]}" "$ROOT/run.sh" "$m"
   RC=$?
+  if [ "$RC" -eq 130 ]; then
+    echo "!! sweep interrupted (resume with: ./sweep.sh -o ${SWEEP#"$ROOT/"})" >&2
+    exit 130
+  fi
   if [ "$RC" -eq 2 ]; then
     echo "!! $m: setup problem, stopping the sweep (fix it and resume with: ./sweep.sh -o ${SWEEP#"$ROOT/"})" >&2
     exit 2
