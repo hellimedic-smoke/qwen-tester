@@ -1,0 +1,7 @@
+chip=Apple M5 Max
+memory_gb=128
+macos=27.0
+omlx=0.6.4
+opencode=1.17.14
+date=2026-09-19
+note=opencode ran inside a Linux VM on this Mac and reached oMLX over the VM NAT; timings include that overhead. BENCH_TIMEOUT was 1200.

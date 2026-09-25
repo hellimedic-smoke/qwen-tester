@@ -1,0 +1,16 @@
+task	status	passed	failed	agent_secs	exit	out_tokens	turns
+t01-duration-parse	PASS	10	0	75	0	2103	5
+t02-lru-cache	PASS	8	0	42	0	813	4
+t03-csv-quoting	PASS	11	0	226	0	7714	6
+t04-extract-validation	PASS	10	0	106	0	2221	7
+t05-perf-dedup	PASS	9	0	82	0	1061	4
+t06-pagination	PASS	9	0	80	0	2199	5
+t07-retry-backoff	PASS	9	0	56	0	1395	6
+t08-cli-feature	PASS	13	0	142	0	5590	8
+t09-write-tests	PASS	9	0	250	0	9392	13
+t10-state-machine	PASS	17	0	159	0	2836	8
+t11-lock-deadlock	PASS	14	0	682	0	11749	12
+t12-minimal-diff	PASS	12	0	506	0	14750	10
+t13-di-migration	PASS	11	0	266	0	9032	5
+t14-aliasing-bug	PASS	15	0	216	0	5159	9
+t15-match-convention	PASS	14	0	86	0	2262	6
