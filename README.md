@@ -1,4 +1,4 @@
-# omlx-bench
+# qwen-tester
 
 A small, hermetic coding benchmark for local models on Apple Silicon. It runs
 [opencode](https://opencode.ai) against three pinned Qwen models served by
