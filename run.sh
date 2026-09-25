@@ -3,16 +3,15 @@
 #   ./run.sh Qwen3-Coder-30B-A3B-Instruct-MLX-8bit               all 15 tasks
 #   ./run.sh Qwen3.8-27B-MLX-8bit t02-lru-cache t05-perf-dedup    a subset
 #
-# Env: OMLX_URL            oMLX server (default http://localhost:8100)
+# Env: OMLX_URL            oMLX server (default: localhost:8000, then :8100)
 #      BENCH_TIMEOUT       per-task agent budget in seconds (default 900)
 #      BENCH_TEST_TIMEOUT  grading budget in seconds (default 120)
 #      BENCH_RUN_DIR       write results here instead of a fresh directory
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OMLX_URL="${OMLX_URL:-http://localhost:8100}"
 TIMEOUT="${BENCH_TIMEOUT:-900}"
 TEST_TIMEOUT="${BENCH_TEST_TIMEOUT:-120}"
-TO="python3 $ROOT/lib/timeout.py"
+to() { python3 "$ROOT/lib/timeout.py" "$@"; }
 
 MODEL="${1:-}"; shift || true
 [ -z "$MODEL" ] && { echo "usage: ./run.sh <model-id> [task...]" >&2; exit 2; }
@@ -23,16 +22,20 @@ command -v python3  >/dev/null || die "python3 not found"
 command -v opencode >/dev/null || die "opencode not found (https://opencode.ai)"
 command -v curl     >/dev/null || die "curl not found"
 [ -f "$ROOT/opencode.json" ] || die "missing $ROOT/opencode.json"
-MODELS=$("$ROOT/lib/models.sh" "$OMLX_URL") || die "no oMLX server at $OMLX_URL (is it running? try: omlx start)"
+OMLX_URL=$("$ROOT/lib/omlx_url.sh") || die "no oMLX server at ${OMLX_URL:-localhost:8000 or :8100} (is it running? try: omlx start)"
+MODELS=$("$ROOT/lib/models.sh" "$OMLX_URL") || die "no oMLX server at $OMLX_URL"
 grep -qxF "$MODEL" <<<"$MODELS" || die "model '$MODEL' is not on $OMLX_URL (server has: $(tr '\n' ' ' <<<"$MODELS"))"
 
 # ---- opencode config: ours, never the user's global one --------------------
 CONFIG="$ROOT/opencode.json"
-if [ "$OMLX_URL" != "http://localhost:8100" ]; then
-  CONFIG=$(mktemp -t omlx-bench.XXXXXX)
-  sed "s#http://localhost:8100#$OMLX_URL#" "$ROOT/opencode.json" > "$CONFIG"
-  trap 'rm -f "$CONFIG"' EXIT
+SCRATCH=$(mktemp -d -t omlx-bench) || die "mktemp failed"
+trap 'rm -rf "$SCRATCH"' EXIT
+if [ "$OMLX_URL" != "http://localhost:8000" ]; then
+  CONFIG="$SCRATCH/opencode.json"
+  python3 -c 'import sys; print(open(sys.argv[1]).read().replace("http://localhost:8000", sys.argv[2]), end="")' \
+    "$ROOT/opencode.json" "$OMLX_URL" > "$CONFIG"
 fi
+[ -s "$CONFIG" ] || die "could not prepare opencode config"
 export OPENCODE_CONFIG="$CONFIG"
 # Isolate from the user's global opencode config (plugins, providers) and pin
 # the version for the duration of the run. The config dir is git-ignored;
@@ -60,15 +63,18 @@ if curl -sf --max-time 600 "$OMLX_URL/v1/chat/completions" -H 'content-type: app
 then echo "ready in $(( $(date +%s) - W0 ))s"
 else echo "warm-up request failed, continuing"; fi
 
-# ---- warm-up: opencode's first call in a checkout must run from the repo
-# root, not a workspace subdirectory, or opencode 1.17 hangs before it
-# creates its project snapshot. Also proves the config + provider path works.
+# ---- smoke: prove opencode + shipped config + provider work end to end,
+# in a scratch directory outside the checkout so a stray tool call cannot
+# touch tracked files. Two failures in a row is a setup problem, not a
+# benchmark result.
 printf '   checking opencode ... '
 W0=$(date +%s)
-smoke() { ( cd "$ROOT" && $TO 60 opencode run --auto --format json -m "omlx/$MODEL" "Reply with the single word: ready" </dev/null >/dev/null 2>&1 ); }
+mkdir -p "$SCRATCH/smoke"
+smoke() { ( cd "$SCRATCH/smoke" && to 60 opencode run --auto --dir "$SCRATCH/smoke" --format json -m "omlx/$MODEL" \
+            "Reply with the single word: ready" </dev/null >"$SCRATCH/smoke.log" 2>&1 ); }
 if smoke; then echo "ok in $(( $(date +%s) - W0 ))s"
 elif { printf 'no reply, retrying ... '; smoke; }; then echo "ok in $(( $(date +%s) - W0 ))s"
-else echo "opencode smoke call failed or timed out (see README: troubleshooting), continuing"; fi
+else echo; tail -5 "$SCRATCH/smoke.log" >&2; die "opencode could not complete a trivial request with the shipped config (see README: troubleshooting)"; fi
 
 POS=""
 [ -n "${BENCH_CONFIG_INDEX:-}" ] && POS="[${BENCH_CONFIG_INDEX}/${BENCH_CONFIG_TOTAL}] "
@@ -86,7 +92,7 @@ for t in "${TASKS[@]}"; do
 
   IDX=$((IDX + 1))
   START=$(date +%s)
-  $TO "$TIMEOUT" opencode run --auto --dir "$WS" --format json -m "omlx/$MODEL" "$PROMPT" \
+  to "$TIMEOUT" opencode run --auto --dir "$WS" --format json -m "omlx/$MODEL" "$PROMPT" \
     <"/dev/null" >"$RUN/$t.agent.log" 2>&1
   RC=$?
   # A timeout with an empty transcript means opencode never started the
@@ -98,7 +104,7 @@ for t in "${TASKS[@]}"; do
     echo "   !!   $t: opencode produced no output in ${TIMEOUT}s, retrying once"
     rm -rf "$WS"; mkdir -p "$WS"; cp -R "$TD/workspace/." "$WS/"
     START=$(date +%s)
-    $TO "$TIMEOUT" opencode run --auto --dir "$WS" --format json -m "omlx/$MODEL" "$PROMPT" \
+    to "$TIMEOUT" opencode run --auto --dir "$WS" --format json -m "omlx/$MODEL" "$PROMPT" \
       <"/dev/null" >"$RUN/$t.agent.log" 2>&1
     RC=$?
   fi
@@ -107,7 +113,7 @@ for t in "${TASKS[@]}"; do
   # Grade in a clean process against hidden tests the agent never saw.
   cp "$TD/tests/"_verify_*.py "$WS/" 2>/dev/null
   TESTOUT="$RUN/$t.test.log"
-  ( cd "$WS" && $TO "$TEST_TIMEOUT" python3 -m unittest discover -p '_verify_*.py' -v ) >"$TESTOUT" 2>&1
+  ( cd "$WS" && to "$TEST_TIMEOUT" python3 -m unittest discover -p '_verify_*.py' -v ) >"$TESTOUT" 2>&1
   TRC=$?
 
   # Parse unittest's own summary rather than grepping per-test lines, so

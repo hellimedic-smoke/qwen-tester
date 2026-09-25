@@ -8,8 +8,8 @@ you can compare with the same table from someone else's Mac.
 Each task is a self-contained workspace with a seeded bug or a missing
 implementation. The agent gets a plain-English prompt and the workspace. It is
 graded afterwards, in a clean process, against a hidden `unittest` suite it
-never saw. Stdlib only: no pytest, no Docker, no network beyond your own
-oMLX server.
+never saw. Stdlib only: no pytest, no Docker. Nothing talks to the network
+during a run except opencode talking to your own oMLX server.
 
 What it measures is the whole setup, opencode's agent loop plus the model, not
 raw token throughput. `OUT TOK/S` is the number to compare across machines.
@@ -50,7 +50,8 @@ OUT TOK/S = output tokens / agent wall clock, summed over the run.
 
 ## Requirements
 
-- Apple Silicon Mac, macOS 14 or later, `python3` (any 3.10+), `curl`
+- Apple Silicon Mac, macOS 14 or later, `python3` (3.9 or later, the Xcode
+  command line tools version is fine), `curl`
 - [oMLX](https://github.com/jundot/omlx) 0.6 or later
 - [opencode](https://opencode.ai) 1.17 or later
 - Enough unified memory for the models you want to run (see below)
@@ -71,16 +72,23 @@ rest, so a 64 GB machine still produces a valid two-model result.
 ## Setup
 
 ```bash
-pip install omlx                                 # or: uv tool install omlx
+# oMLX: download the .dmg from https://github.com/jundot/omlx/releases and
+# drag it to Applications, or use Homebrew:
+brew tap jundot/omlx https://github.com/jundot/omlx && brew install jundot/omlx/omlx
+
+# opencode
 curl -fsSL https://opencode.ai/install | bash
-pip install -U huggingface_hub                   # for the hf command
+
+# the hf downloader (any of these works)
+brew install huggingface-cli        # or: uv tool install huggingface_hub
+                                    # or: pipx install huggingface_hub
 
 mkdir -p ~/.omlx/models && cd ~/.omlx/models
 hf download lmstudio-community/Qwen3-Coder-30B-A3B-Instruct-MLX-8bit --local-dir Qwen3-Coder-30B-A3B-Instruct-MLX-8bit
 hf download mlx-community/Qwen3.8-27B-8bit                            --local-dir Qwen3.8-27B-MLX-8bit
 hf download Jundot/Qwen3.8-Flash-Next-oQ4e-mtp                        --local-dir Qwen3.8-Flash-Next-oQ4e-mtp   # 128 GB Macs only
 
-omlx start                                       # serves on http://localhost:8100
+omlx start                          # oMLX's default port is 8000
 ```
 
 Then, from a clone of this repo:
@@ -93,8 +101,11 @@ Then, from a clone of this repo:
 The benchmark uses its own `opencode.json` and its own config directory
 (`.opencode/`, git-ignored), so your global opencode settings and plugins are
 neither read nor changed. opencode populates that directory on first use,
-which needs the network once and takes a few seconds. If oMLX runs on
-another machine, set `OMLX_URL=http://host:8100`.
+which needs the network once and takes a few seconds.
+
+The scripts look for oMLX on `http://localhost:8000` (its default) and then
+`http://localhost:8100`. If you changed the port or run oMLX on another
+machine, set `OMLX_URL=http://host:port`.
 
 ## Run
 
@@ -197,11 +208,13 @@ Three are worth calling out:
 
 ## Troubleshooting
 
-- `no oMLX server at ...`: run `omlx start`, or set `OMLX_URL`.
+- `no oMLX server at ...`: run `omlx start`, or set `OMLX_URL` if the server
+  is not on localhost port 8000 or 8100 (check the port in the oMLX app's
+  settings, or `~/.omlx/settings.json`).
 - `model '...' is not on ...`: the directory name under `~/.omlx/models`
   must match the id exactly; `./lib/models.sh` shows what the server sees.
-- `opencode smoke call failed or timed out`: opencode could not complete a
-  trivial request with the shipped config. Run
+- `opencode could not complete a trivial request`: the runner stops before
+  the first task because opencode failed twice on a one-line prompt. Run
   `OPENCODE_CONFIG=$PWD/opencode.json OPENCODE_CONFIG_DIR=$PWD/.opencode opencode run -m omlx/<model-id> "say hi"`
   by hand to see the error.
 - `opencode produced no output in ...s, retrying once`: opencode never

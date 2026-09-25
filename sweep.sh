@@ -6,7 +6,6 @@
 # Env: OMLX_URL, BENCH_TIMEOUT, BENCH_NOTE (free text saved in machine.txt)
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OMLX_URL="${OMLX_URL:-http://localhost:8100}"
 
 PINNED=(
   Qwen3-Coder-30B-A3B-Instruct-MLX-8bit
@@ -18,7 +17,9 @@ SWEEP=""
 if [ "${1:-}" = "-o" ]; then SWEEP="$2"; shift 2; fi
 [ -z "$SWEEP" ] && SWEEP="$ROOT/results/$("$ROOT/lib/machine.sh" slug)-$(date +%Y%m%d-%H%M%S)"
 
-AVAILABLE=$("$ROOT/lib/models.sh" "$OMLX_URL") || { echo "!! no oMLX server at $OMLX_URL (is it running? try: omlx start)" >&2; exit 2; }
+OMLX_URL=$("$ROOT/lib/omlx_url.sh") || { echo "!! no oMLX server at ${OMLX_URL:-localhost:8000 or :8100} (is it running? try: omlx start)" >&2; exit 2; }
+export OMLX_URL
+AVAILABLE=$("$ROOT/lib/models.sh" "$OMLX_URL") || { echo "!! no oMLX server at $OMLX_URL" >&2; exit 2; }
 
 MODELS=("$@")
 if [ ${#MODELS[@]} -eq 0 ]; then
@@ -32,7 +33,7 @@ fi
 mkdir -p "$SWEEP"
 [ -f "$SWEEP/machine.txt" ] || "$ROOT/lib/machine.sh" > "$SWEEP/machine.txt"
 NTASKS=$(ls -d "$ROOT"/tasks/*/ | wc -l | tr -d ' ')
-echo "sweep -> ${SWEEP#$ROOT/}"
+echo "sweep -> ${SWEEP#"$ROOT/"}"
 echo "${#MODELS[@]} models x $NTASKS tasks"
 for m in "${MODELS[@]}"; do echo "   - $m"; done
 echo
@@ -57,4 +58,4 @@ echo "================================================================"
 echo "sweep finished in $((ELAPSED/3600))h$(( (ELAPSED%3600)/60 ))m"
 echo "================================================================"
 "$ROOT/score.sh" "${DIRS[@]}" | tee "$SWEEP/summary.txt"
-echo "saved: ${SWEEP#$ROOT/}/summary.txt"
+echo "saved: ${SWEEP#"$ROOT/"}/summary.txt"
